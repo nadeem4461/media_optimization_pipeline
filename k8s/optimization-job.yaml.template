@@ -39,7 +39,7 @@ spec:
               value: "/workspace"
 
             - name: ASSET_FOLDERS
-              value: "sample-project/assets,public,static,assets"
+              value: "sample-project/assets"
 
             - name: MONGO_URI
               value: "mongodb://mongo:27017/media-optimizer"
@@ -53,5 +53,5 @@ spec:
 
         - name: workspace-volume
           hostPath:
-            path: /home/runner/_work/media-optimization-pipeline/media-optimization-pipeline
+            path: /home/nadeem/Desktop/media-optimization-pipeline/actions-runner/_work/media_optimization_pipeline/media_optimization_pipeline
             type: Directory
