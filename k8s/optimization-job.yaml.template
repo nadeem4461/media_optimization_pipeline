@@ -53,5 +53,5 @@ spec:
 
         - name: workspace-volume
           hostPath:
-            path: /home/nadeem/Desktop/media-optimization-pipeline/actions-runner/_work/media_optimization_pipeline/media_optimization_pipeline
+            path: /home/nadeem/Desktop/media-optimization-pipeline
             type: Directory
