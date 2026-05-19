@@ -20,86 +20,70 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.head_ref }}
 
       - name: Get PR info
-        shell: powershell
         run: |
-          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $env:GITHUB_ENV
-          echo "BRANCH_NAME=${{ github.head_ref }}" >> $env:GITHUB_ENV
-          echo "REPO_NAME=${{ github.repository }}" >> $env:GITHUB_ENV
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+          echo "REPO_NAME=${{ github.repository }}" >> $GITHUB_ENV
 
       - name: Render Kubernetes Job Manifest
-        shell: powershell
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BRANCH_NAME: ${{ github.head_ref }}
           REPO_NAME: ${{ github.repository }}
         run: |
-          $content = Get-Content k8s/optimization-job.yaml.template -Raw
-
-          $content = $content.Replace('${PR_NUMBER}', $env:PR_NUMBER)
-          $content = $content.Replace('${BRANCH_NAME}', $env:BRANCH_NAME)
-          $content = $content.Replace('${REPO_NAME}', $env:REPO_NAME)
-
-          Set-Content k8s/optimization-job.yaml $content
+          sed \
+            -e "s|\${PR_NUMBER}|${PR_NUMBER}|g" \
+            -e "s|\${BRANCH_NAME}|${BRANCH_NAME}|g" \
+            -e "s|\${REPO_NAME}|${REPO_NAME}|g" \
+            k8s/optimization-job.yaml.template > k8s/optimization-job.yaml
 
       - name: Delete old Kubernetes Job
-        shell: powershell
         run: |
-          kubectl delete job media-optimize-job-${{ github.event.pull_request.number }} `
-            -n media-opt `
+          kubectl delete job media-optimize-job-${{ github.event.pull_request.number }} \
+            -n media-opt \
             --ignore-not-found=true
 
       - name: Apply Kubernetes Job
-        shell: powershell
         run: |
           kubectl apply -f k8s/optimization-job.yaml
 
       - name: Wait for Job Completion
-        shell: powershell
         run: |
-          kubectl wait `
-            --for=condition=complete `
-            --timeout=600s `
-            job/media-optimize-job-${{ github.event.pull_request.number }} `
+          kubectl wait \
+            --for=condition=complete \
+            --timeout=600s \
+            job/media-optimize-job-${{ github.event.pull_request.number }} \
             -n media-opt
 
       - name: Print Job Logs
-        shell: powershell
         run: |
-          $pod = kubectl get pods `
-            -n media-opt `
-            -l job-name=media-optimize-job-${{ github.event.pull_request.number }} `
-            -o jsonpath="{.items[0].metadata.name}"
+          POD=$(kubectl get pods \
+            -n media-opt \
+            -l job-name=media-optimize-job-${{ github.event.pull_request.number }} \
+            -o jsonpath="{.items[0].metadata.name}")
 
-          kubectl logs -n media-opt $pod --tail=500
+          kubectl logs -n media-opt $POD --tail=500
 
       - name: Commit optimized assets
-        shell: powershell
         run: |
           git config --global user.name "media-optimizer-bot"
           git config --global user.email "bot@mediaoptimizer.ai"
 
-          git checkout ${{ github.head_ref }}
-
           git add .
 
-          $changes = git diff --cached --name-only
-
-          if (-not $changes) {
-            Write-Host "No optimization changes to commit"
-          }
-          else {
+          if git diff --cached --quiet; then
+            echo "No optimization changes to commit"
+          else
             git commit -m "auto optimize images to webp"
 
-            git push origin ${{ github.head_ref }}
+            git push origin HEAD:${{ github.head_ref }}
 
-            Write-Host "Optimized assets pushed successfully"
-          }
+            echo "Optimized assets pushed successfully"
+          fi
 
       - name: Cleanup Kubernetes Job
         if: always()
-        shell: powershell
         run: |
           kubectl delete -f k8s/optimization-job.yaml --ignore-not-found=true
