@@ -1,0 +1,16 @@
+terminal one :
+cd action-runners
+./run.sh
+
+
+terminal 2 :
+ minikube mount /home/nadeem/Desktop/media-optimization-pipeline/actions-runner/_work/media_optimization_pipeline/media_optimization_pipeline:/workspace
+
+
+ terminal 3 :
+ minikube start
+
+ to check backend :
+ minikube service dashboard-backend -n media-opt --url
+
+ 

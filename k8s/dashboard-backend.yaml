@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: dashboard-backend
+  namespace: media-opt
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: dashboard-backend
+
+  template:
+
+    metadata:
+      labels:
+        app: dashboard-backend
+
+    spec:
+
+      containers:
+
+        - name: backend
+
+          image: node:20
+
+          workingDir: /app
+
+          command:
+            - sh
+            - -c
+            - |
+              npm install
+              node app.js
+
+          env:
+
+            - name: PORT
+              value: "4000"
+
+            - name: MONGO_URI
+              value: "mongodb://mongo:27017/media-optimizer"
+
+          ports:
+
+            - containerPort: 4000
+
+          volumeMounts:
+
+            - name: backend-volume
+              mountPath: /app
+
+      volumes:
+
+        - name: backend-volume
+          hostPath:
+            path: /workspace/dashboard/backend
+            type: Directory
+
+---
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: dashboard-backend
+  namespace: media-opt
+
+spec:
+  selector:
+    app: dashboard-backend
+
+  ports:
+    - port: 4000
+      targetPort: 4000
+
+  type: NodePort

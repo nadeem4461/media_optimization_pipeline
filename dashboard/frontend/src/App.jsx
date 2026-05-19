@@ -1,79 +1,153 @@
 import React, { useEffect, useState, useRef } from 'react'
 
-export default function App(){
+export default function App() {
   const [prs, setPrs] = useState([])
   const [stats, setStats] = useState({})
   const chartRef = useRef(null)
 
-  useEffect(()=>{
-    fetch('/api/prs').then(r=>r.json()).then(setPrs)
-    fetch('/api/prs/stats').then(r=>r.json()).then(setStats)
-  },[])
+  useEffect(() => {
+    fetch('/api/prs')
+      .then(r => r.json())
+      .then(setPrs)
 
-  useEffect(()=>{
+    fetch('/api/prs/stats')
+      .then(r => r.json())
+      .then(setStats)
+  }, [])
+
+  useEffect(() => {
     if (!window.Chart || !prs.length) return
-    const ctx = chartRef.current.getContext('2d')
-    const labels = prs.slice(0,10).map(pr => `PR #${pr.prNumber}`)
-    const data = prs.slice(0,10).map(pr => pr.savedMB || 0)
 
-    new window.Chart(ctx, {
+    const ctx = chartRef.current.getContext('2d')
+    const labels = prs.slice(0, 10).map(pr => `PR #${pr.prNumber}`)
+    const data = prs.slice(0, 10).map(pr => parseFloat((pr.totalSavedBytes || 0) / 1024 / 1024))
+
+    if (window.currentChart) {
+      window.currentChart.destroy()
+    }
+
+    window.Chart.defaults.color = '#94a3b8';
+    window.Chart.defaults.font.family = "'Outfit', sans-serif";
+
+    window.currentChart = new window.Chart(ctx, {
       type: 'line',
       data: {
-        labels,
-        datasets: [{
-          label: 'Space Saved (MB)',
-          data,
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59,130,246,0.2)',
-          fill: true,
-          tension: 0.3
-        }]
+        labels: labels.reverse(),
+        datasets: [
+          {
+            label: 'Space Saved (MB)',
+            data: data.reverse(),
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#10b981',
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 17, 26, 0.9)',
+            titleColor: '#f8fafc',
+            bodyColor: '#e2e8f0',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y.toFixed(2) + ' MB Saved';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              color: 'rgba(255,255,255,0.05)',
+              drawBorder: false
+            }
+          },
+          y: {
+            grid: {
+              color: 'rgba(255,255,255,0.05)',
+              drawBorder: false
+            },
+            beginAtZero: true
+          }
+        }
       }
     })
   }, [prs])
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-4">Media Optimization Dashboard</h1>
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-5 rounded shadow">
-          <div className="text-sm uppercase text-gray-500">Total PRs</div>
-          <div className="text-3xl font-semibold">{stats.total||0}</div>
+    <div className="container">
+      <h1 className="header-title">
+        Media Optimization Dashboard
+      </h1>
+
+      <div className="grid-stats">
+        <div className="stat-card">
+          <div className="stat-label">Total PRs</div>
+          <div className="stat-value">{Number(stats.totalPRs || 0)}</div>
         </div>
-        <div className="bg-white p-5 rounded shadow">
-          <div className="text-sm uppercase text-gray-500">Saved MB</div>
-          <div className="text-3xl font-semibold">{(stats.savedMB||0).toFixed(2)}</div>
+
+        <div className="stat-card">
+          <div className="stat-label">Space Saved</div>
+          <div className="stat-value">{Number((stats.totalSavedBytes || 0) / 1024 / 1024).toFixed(2)} <span style={{fontSize: '1.25rem', color: 'var(--text-muted)'}}>MB</span></div>
         </div>
-        <div className="bg-white p-5 rounded shadow">
-          <div className="text-sm uppercase text-gray-500">Last Run</div>
-          <div className="text-3xl font-semibold">{prs[0] ? new Date(prs[0].timestamps.finishedAt).toLocaleString() : 'N/A'}</div>
+
+        <div className="stat-card">
+          <div className="stat-label">Last Run</div>
+          <div className="stat-value" style={{fontSize: '1.5rem', marginTop: '0.5rem'}}>
+            {stats.lastRun ? new Date(stats.lastRun).toLocaleString() : 'N/A'}
+          </div>
         </div>
       </div>
 
-      <div className="bg-white p-5 rounded shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4">Compression Trend</h2>
-        <canvas ref={chartRef} height="120" />
+      <div className="section-card">
+        <h2 className="section-title">Compression Trend</h2>
+        <div className="chart-container">
+          <canvas ref={chartRef} />
+        </div>
       </div>
 
-      <div className="bg-white p-5 rounded shadow">
-        <h2 className="text-xl font-semibold mb-4">Recent PR Activity</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left border-collapse">
+      <div className="section-card">
+        <h2 className="section-title">Recent PR Activity</h2>
+        <div className="table-container">
+          <table className="data-table">
             <thead>
-              <tr className="border-b">
-                <th className="p-3">PR</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Saved MB</th>
-                <th className="p-3">Files</th>
+              <tr>
+                <th>PR</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Saved MB</th>
+                <th>Files</th>
               </tr>
             </thead>
             <tbody>
-              {prs.map(p=> (
-                <tr key={p._id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{p.prNumber} ({p.repoName})</td>
-                  <td className="p-3">{p.status}</td>
-                  <td className="p-3">{(p.savedMB||0).toFixed(2)}</td>
-                  <td className="p-3">{(p.optimizedFiles||[]).length}</td>
+              {prs.map(p => (
+                <tr key={p._id}>
+                  <td>
+                    <span className="pr-link">#{p.prNumber}</span>
+                  </td>
+                  <td>{p.branch}</td>
+                  <td>
+                    <span className={`status-badge ${p.status === 'completed' ? 'status-completed' : (p.status === 'pending' ? 'status-pending' : 'status-default')}`}>
+                      {p.status || 'unknown'}
+                    </span>
+                  </td>
+                  <td>{Number((p.totalSavedBytes || 0) / 1024 / 1024).toFixed(2)}</td>
+                  <td>{(p.optimizedFiles || []).length}</td>
                 </tr>
               ))}
             </tbody>
