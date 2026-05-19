@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: media-optimize-job
+  namespace: media-opt
+
+spec:
+  backoffLimit: 0
+
+  template:
+
+    metadata:
+      labels:
+        app: media-optimizer
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+
+        - name: optimizer
+          image: media-optimizer:latest
+          imagePullPolicy: Never
+
+          env:
+
+            - name: PR_NUMBER
+              value: "999"
+
+            - name: BRANCH_NAME
+              value: "local-test"
+
+            - name: REPO_NAME
+              value: "media_optimization_pipeline"
+
+            - name: WORKSPACE_PATH
+              value: "/workspace"
+
+            - name: ASSET_FOLDERS
+              value: "sample-project/assets"
+
+            - name: MONGO_URI
+              value: "mongodb://mongo:27017/media-optimizer"
+
+          volumeMounts:
+
+            - name: workspace-volume
+              mountPath: /workspace
+
+      volumes:
+
+        - name: workspace-volume
+          hostPath:
+            path: /home/nadeem/Desktop/media-optimization-pipeline
+            type: Directory
