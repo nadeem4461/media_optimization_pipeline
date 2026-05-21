@@ -13,4 +13,3 @@ terminal 2 :
  to check backend :
  minikube service dashboard-backend -n media-opt --url
 
- 
